@@ -50,7 +50,12 @@ class LinearModule(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        std = 1 / np.sqrt(in_features) if input_layer else np.sqrt(2) / np.sqrt(out_features)
+        self.params['weight'] = np.random.normal(0, std, (in_features, out_features))
+        self.grads['weight'] = np.zeros_like(self.params['weight'])
+        
+        self.params['bias'] = np.zeros((out_features, 1))
+        self.grads['bias'] = np.zeros_like(self.params['bias'])
         #######################
         # END OF YOUR CODE    #
         #######################
