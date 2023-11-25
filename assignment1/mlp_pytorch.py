@@ -59,7 +59,15 @@ class MLP(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        super().__init__()
+
+        layers = []
+        layer_sizes = [n_inputs] + n_hidden
+        for layer_index in range(1, len(layer_sizes)):
+            layers += [nn.Linear(layer_sizes[layer_index-1], layer_sizes[layer_index]),
+                       nn.ELU()]
+        layers += [nn.Linear(layer_sizes[-1], n_classes)]
+        self.layers = nn.Sequential(*layers) 
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -81,7 +89,8 @@ class MLP(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        x = x.view(x.size(0), -1)
+        out = self.layers(x)
         #######################
         # END OF YOUR CODE    #
         #######################

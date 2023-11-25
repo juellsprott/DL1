@@ -52,7 +52,21 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        self.layers = []
+        in_features = n_inputs
+        n_hidden.append(n_classes)
+
+        for i in range(len(n_hidden)):
+          input_layer = True if i == 0 else False
+          
+          out_features = n_hidden[i]
+          self.layers.append(LinearModule(in_features, out_features, input_layer))
+          activation = ELUModule() if i != len(n_hidden) - 1 else SoftMaxModule()
+          self.layers.append(activation)
+          
+          in_features = out_features
+          
+          
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -74,7 +88,9 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-
+        out = x
+        for layer in self.layers:
+            out = layer.forward(out)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -95,7 +111,8 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        for layer in reversed(self.layers):
+          dout = layer.backward(dout)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -112,7 +129,8 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        for layer in self.layers:
+          layer.clear_cache()
         #######################
         # END OF YOUR CODE    #
         #######################

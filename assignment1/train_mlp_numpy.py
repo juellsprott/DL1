@@ -48,7 +48,13 @@ def confusion_matrix(predictions, targets):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    n_classes = predictions.shape[1]
+    predictions = np.argmax(predictions, axis=1)
+    conf_mat = np.zeros((n_classes, n_classes))
+    
+    for true, pred in zip(targets, predictions):
+        conf_mat[true, pred] += 1
+      
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -69,7 +75,20 @@ def confusion_matrix_to_metrics(confusion_matrix, beta=1.):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
+    total_samples = np.sum(confusion_matrix)
+    correct_predictions = np.sum(np.diag(confusion_matrix))
+    accuracy = correct_predictions / total_samples
 
+    # TODO: implement other metrics
+    precision = None
+    recall = None
+    f1_beta = None
+    metrics = {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_beta': f1_beta
+    }
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -96,6 +115,14 @@ def evaluate_model(model, data_loader, num_classes=10):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
+    total_acc = []
+    for input, label in data_loader:
+      input = input.reshape(len(input), -1)
+      output = model.forward(input)
+      conf_mat = confusion_matrix(output, label)
+      metrics = confusion_matrix_to_metrics(conf_mat)
+      total_acc.append(metrics['accuracy'])
+    metrics['accuracy'] = np.mean(np.array(total_acc))
 
     #######################
     # END OF YOUR CODE    #
@@ -149,15 +176,46 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     # PUT YOUR CODE HERE  #
     #######################
 
-    # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
-    # TODO: Training loop including validation
-    val_accuracies = ...
-    # TODO: Test best model
-    test_accuracy = ...
     # TODO: Add any information you might want to save for plotting
-    logging_info = ...
+    logging_dict = {}
+    # TODO: Initialize model and loss module
+    model = MLP(3 * 32 * 32, hidden_dims, 10)
+    loss_module = CrossEntropyModule()
+    # TODO: Training loop including validation
+    best_model = None
+    best_acc = 0
+    val_accuracies = []
+    loss_list = []
+    for epoch in tqdm(range(epochs)):
+      tmp_loss = []
+      for images, labels in cifar10_loader['train']:
+        input = images.reshape(batch_size, -1)
+        output = model.forward(input)
+        loss = loss_module.forward(output, labels)
+        tmp_loss.append(loss)
+        model.backward(loss_module.backward(output, labels))
+        
+        for layer in model.layers:
+          if hasattr(layer, 'params'):
+            layer.params['weight'] = layer.params['weight'] - (lr * layer.grads['weight'])
+            layer.params['bias'] = layer.params['bias'] - (lr * layer.grads['bias'])
+      
+      loss_list.append(np.mean(np.array(tmp_loss)))
+      model.clear_cache()
+      metrics = evaluate_model(model, cifar10_loader['validation'])
+      print(f'Accuracy after {epoch + 1} epochs is {metrics["accuracy"]}')
+      val_accuracies.append(metrics['accuracy'])
+      if metrics['accuracy'] > best_acc:
+        model.clear_cache()
+        best_model = deepcopy(model)
+        
+    # TODO: Test best model
+    model.clear_cache()
+    metrics = evaluate_model(best_model, cifar10_loader['test'])
+    test_accuracy = metrics['accuracy']
+    logging_dict = {'validation accuracy': val_accuracies, 'loss':loss_list}
+    
+    print(f'Test accuracy is {test_accuracy}')
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -190,6 +248,26 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
-    train(**kwargs)
+    model, val, test, logs = train(**kwargs)
     # Feel free to add any additional functions, such as plotting of the loss curve here
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(logs['validation accuracy'], label='Accuracy')
+    plt.title('Accuracy Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    # Plot loss
+    plt.subplot(1, 2, 2)
+    plt.plot(logs['loss'], label='Loss', color='r')
+    plt.title('Loss Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
     
