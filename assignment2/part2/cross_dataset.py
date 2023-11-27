@@ -68,6 +68,7 @@ def parse_option():
         help="choose visual prompting method",
     )
     parser.add_argument("--prompt_type", type=str, default="visual_prompt", help="what type of prompt to use")
+    parser.add_argument("--prompt_num", type=int, default=4, help="number of learnable deep prompts to use")
     parser.add_argument("--injection_layer", type=int, default=0, help="id of transformer layer to inject prompt into")
     parser.add_argument(
         "--prompt_size", type=int, default=30, help="size for visual prompts"
@@ -178,7 +179,6 @@ def main():
         #######################
         # TODO: Define `classnames` as a list of 10 + 100 class labels from CIFAR10 and CIFAR100
 
-        raise NotImplementedError
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -205,8 +205,14 @@ def main():
         #######################
         # TODO: Compute the text features (for each of the prompts defined above) using CLIP
         # Note: This is similar to the code you wrote in `clipzs.py`
-
-        raise NotImplementedError
+        with torch.no_grad():
+            # Steps:
+            # - Tokenize each text prompt using CLIP's tokenizer.
+            tokenized_text = clip.tokenize(prompts).to(args.device)
+            # - Compute the text features (encodings) for each prompt.
+            text_encodings = clip_model.encode_text(tokenized_text)
+            # - Normalize the text features.
+            text_features = text_encodings / text_encodings.norm(dim=-1, keepdim=True)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -222,7 +228,11 @@ def main():
         # That is, if a class in CIFAR100 corresponded to '4', it should now correspond to '14'
         # Set the result of this to the attribute cifar100_test.targets to override them
 
-        raise NotImplementedError
+        tmp = []
+        for label in cifar100_test.targets:
+            label = label + 10
+            tmp.append(label)
+        cifar100_test.targets = tmp
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -252,10 +262,11 @@ def main():
         # TODO: Compute the weighted average of the above two accuracies
 
         # Hint:
-        # - accurary_all = acc_cifar10 * (% of cifar10 samples) \
-        #                  + acc_cifar100 * (% of cifar100 samples)
+        cifar10_samples_acc = len(cifar10_loader) / (len(cifar10_loader) +  len(cifar100_loader))
+        cifar100_samples_acc = len(cifar100_loader) / (len(cifar10_loader) +  len(cifar100_loader))
+        accuracy_all = acc_cifar10 * cifar10_samples_acc \
+                         + acc_cifar100 * cifar100_samples_acc
 
-        raise NotImplementedError
         #######################
         # END OF YOUR CODE    #
         #######################

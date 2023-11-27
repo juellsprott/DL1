@@ -73,7 +73,10 @@ class Learner:
         # Note: You need to keep the visual/deep prompt's parameters trainable
         # Hint: Check for "prompt_learner" and "deep_prompt" in the parameters' names
 
-        raise NotImplementedError
+        for name, param in self.clip.named_parameters():
+            if "prompt_learner" not in name and "deep_prompt" not in name:
+                param.requires_grad = False
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -112,8 +115,9 @@ class Learner:
 
     def resume_checkpoint(self):
         """Resumes training from a checkpoint."""
-
+        print(self.args.resume)
         if os.path.isfile(self.args.resume):
+            
             print("=> loading checkpoint '{}'".format(self.args.resume))
             if self.args.gpu is None:
                 checkpoint = torch.load(self.args.resume)
@@ -126,7 +130,10 @@ class Learner:
             if self.args.gpu is not None:
                 # best_acc1 may be from a checkpoint from a different GPU
                 best_acc1 = best_acc1.to(self.args.gpu)
-            self.clip.prompt_learner.load_state_dict(checkpoint["state_dict"])
+            if self.args.prompt_type == 'visual_prompt':
+                self.clip.prompt_learner.load_state_dict(checkpoint["state_dict"])
+            else:
+                self.clip.load_state_dict(checkpoint["state_dict"])
             print(
                 "=> loaded checkpoint '{}' (epoch {})".format(
                     self.args.resume, checkpoint["epoch"]
@@ -220,13 +227,17 @@ class Learner:
 
             # Steps ( your usual training loop :) ):
             # - Set the gradients to zero
+            self.optimizer.zero_grad()
             # - Move the images/targets to the device
+            images, target = images.to(self.device), target.to(self.device)
             # - Perform a forward pass (using self.clip)
+            output = self.clip(images).to(self.device)
             # - Compute the loss (using self.criterion)
+            loss = self.criterion(output, target).to(self.device)
             # - Perform a backward pass
+            loss.backward()
             # - Update the parameters
-
-            raise NotImplementedError
+            self.optimizer.step()
             #######################
             # END OF YOUR CODE    #
             #######################
@@ -288,10 +299,12 @@ class Learner:
 
                 # Steps ( your usual evaluation loop :) ):
                 # - Move the images/targets to the device
+                images, target = images.to(self.device), target.to(self.device)
                 # - Forward pass (using self.clip)
+                output = self.clip(images).to(self.device)
                 # - Compute the loss (using self.criterion)
+                loss = self.criterion(output, target).to(self.device)
 
-                raise NotImplementedError
                 #######################
                 # END OF YOUR CODE    #
                 #######################

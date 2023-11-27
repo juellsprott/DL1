@@ -1,3 +1,5 @@
 assignment_zips
 data/
 __pycache__
+model_archive
+*.pt

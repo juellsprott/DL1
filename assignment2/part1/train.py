@@ -52,11 +52,17 @@ def get_model(num_classes=100):
     #######################
 
     # Get the pretrained ResNet18 model on ImageNet from torchvision.models
-    pass
+    model = models.resnet18(pretrained=True)
 
     # Randomly initialize and modify the model's last layer for CIFAR100.
-    pass
-
+    for param in model.parameters():
+        param.requires_grad = False
+        
+    in_features = model.fc.in_features
+    model.fc = nn.Linear(in_features, num_classes)
+    model.fc.weight.data.normal_(std=0.01)
+    model.fc.bias.data.fill_(0)
+    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -85,16 +91,37 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     #######################
 
     # Load the datasets
-    pass
+    train_set, val_set = get_train_validation_set(data_dir, augmentation_name=augmentation_name)
+    train_loader = data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    val_loader = data.DataLoader(val_set, batch_size=batch_size, shuffle=True)
 
     # Initialize the optimizer (Adam) to train the last layer of the model.
-    pass
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss()
+
+    best_acc = 0
+
 
     # Training loop with validation after each epoch. Save the best model.
-    pass
+    print('training...')
+    for epoch in range(epochs):
+        model.train()
+        for inputs, targets in train_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            optimizer.zero_grad()
+            preds = model(inputs)
+            loss = criterion(preds, targets)
+            loss.backward()
+            optimizer.step()
+        accuracy = evaluate_model(model, val_loader, device)
+        print(f'Accuracy is {accuracy}, epochs is {epoch + 1}')
+        if accuracy > best_acc:
+            best_acc = accuracy
+            torch.save(model.state_dict(), checkpoint_name)
 
     # Load the best model on val accuracy and return it.
-    pass
+    model.load_state_dict(torch.load(checkpoint_name))
 
     #######################
     # END OF YOUR CODE    #
@@ -119,12 +146,19 @@ def evaluate_model(model, data_loader, device):
     # PUT YOUR CODE HERE  #
     #######################
     # Set model to evaluation mode (Remember to set it back to training mode in the training loop)
-    pass
-
+    model.eval()
     # Loop over the dataset and compute the accuracy. Return the accuracy
     # Remember to use torch.no_grad().
-    pass
-
+    total_preds = 0
+    correct_preds = 0
+    with torch.no_grad():
+        for inputs, targets in data_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            preds = model(inputs)
+            total_preds += preds.size(0)
+            _, preds = torch.max(preds, 1)
+            correct_preds += (preds == targets).sum().item()
+        accuracy = correct_preds / total_preds
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -148,22 +182,23 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name, test_noise):
     # PUT YOUR CODE HERE  #
     #######################
     # Set the seed for reproducibility
-    pass
+    set_seed(seed)
 
     # Set the device to use for training
-    pass
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load the model
-    pass
+    model = get_model().to(device)
 
     # Get the augmentation to use
-    pass
+    test_set = get_test_set(data_dir, test_noise)
+    test_loader = data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
     # Train the model
-    pass
-
+    model = train_model(model, lr, batch_size, epochs, data_dir, f'resnet18_aug_is_{augmentation_name}.pt', device, augmentation_name)
     # Evaluate the model on the test set
-    pass
+    accuracy = evaluate_model(model, test_loader, device)
+    print(f'Test accuracy is {accuracy}')
 
     #######################
     # END OF YOUR CODE    #

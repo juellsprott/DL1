@@ -28,7 +28,7 @@ from torchvision.datasets import CIFAR10, CIFAR100
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.nn as nn
-from utils import AverageMeter, set_seed
+from utils import AverageMeter, set_seed, accuracy
 
 
 DATASET = {"cifar10": CIFAR10, "cifar100": CIFAR100}
@@ -159,19 +159,22 @@ class ZeroshotCLIP(nn.Module):
 
         # Instructions:
         # - Given a list of prompts, compute the text features for each prompt.
-
-        # Steps:
-        # - Tokenize each text prompt using CLIP's tokenizer.
-        # - Compute the text features (encodings) for each prompt.
-        # - Normalize the text features.
-        # - Return a tensor of shape (num_prompts, 512).
+        with torch.no_grad():
+            # Steps:
+            # - Tokenize each text prompt using CLIP's tokenizer.
+            tokenized_text = clip.tokenize(prompts).to(device)
+            # - Compute the text features (encodings) for each prompt.
+            text_encodings = clip_model.encode_text(tokenized_text)
+            # - Normalize the text features.
+            text_encodings = text_encodings / text_encodings.norm(dim=-1, keepdim=True)
+            # - Return a tensor of shape (num_prompts, 512).
 
         # Hint:
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the precompute_text_features function.")
+        return text_encodings
 
         #######################
         # END OF YOUR CODE    #
@@ -200,17 +203,21 @@ class ZeroshotCLIP(nn.Module):
 
         # Steps:
         # - Compute the image features (encodings) using the CLIP model.
+        with torch.no_grad():
+            image = self.clip_model.encode_image(image)
         # - Normalize the image features.
+        image = image / image.norm(dim=-1, keepdim=True)
         # - Compute similarity logits between the image features and the text features.
+        similarity_logits = (100.0 * image @ self.text_features.T).softmax(dim=-1)
         #   You need to multiply the similarity logits with the logit scale (self.logit_scale).
         # - Return logits of shape (batch size, number of classes).
+        return similarity_logits * self.logit_scale
 
         # Hint:
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.")
 
         #######################
         # END OF YOUR CODE    #
@@ -290,6 +297,7 @@ def visualize_predictions(images, logits, classnames, fig_file):
     # plot images
     h = int(np.floor(images.shape[0] / 2))
     plt.figure(figsize=(3.5 * h, 2 * h))
+    print('plotting images...')
     for i, image in enumerate(images):
         # display image
         plt.subplot(h, 4, 2 * i + 1)
@@ -309,6 +317,7 @@ def visualize_predictions(images, logits, classnames, fig_file):
         plt.grid(axis="x")
 
     plt.tight_layout()
+    plt.show()
     plt.savefig(fig_file)
 
 
@@ -368,11 +377,22 @@ def main():
 
     # Hints:
     # - Before filling this part, you should first complete the ZeroShotCLIP class
-    # - Updating the accuracy meter is as simple as calling top1.update(accuracy, batch_size)
-    # - You can use the model_inference method of the ZeroshotCLIP class to get the logits
+    print('Performing inference...')
+    with torch.no_grad():
+        for images, labels in tqdm(loader):
+            images,labels = images.to(device), labels.to(device)
+            # - You can use the model_inference method of the ZeroshotCLIP class to get the logits
+            logits = clipzs.model_inference(images)
+            # _, preds = torch.max(logits, 1)
+            # correct = (preds == labels).sum().item()
+            # TODO: replace accuracy with own metod
+            top1acc = accuracy(logits, labels)[0]
+            # - Updating the accuracy meter is as simple as calling top1.update(accuracy, batch_size)
+            batch_size = len(labels)
+            top1.update(top1acc / 100, batch_size)
+            
 
     # you can remove the following line once you have implemented the inference loop
-    raise NotImplementedError("Implement the inference loop")
 
     #######################
     # END OF YOUR CODE    #
