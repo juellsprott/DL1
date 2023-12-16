@@ -178,6 +178,7 @@ def main():
         # PUT YOUR CODE HERE  #
         #######################
         # TODO: Define `classnames` as a list of 10 + 100 class labels from CIFAR10 and CIFAR100
+        # classnames was already defined below and as such will not be redefined here
 
         #######################
         # END OF YOUR CODE    #

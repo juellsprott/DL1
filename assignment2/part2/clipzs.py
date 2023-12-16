@@ -28,7 +28,7 @@ from torchvision.datasets import CIFAR10, CIFAR100
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.nn as nn
-from utils import AverageMeter, set_seed, accuracy
+from utils import AverageMeter, set_seed
 
 
 DATASET = {"cifar10": CIFAR10, "cifar100": CIFAR100}
@@ -385,8 +385,15 @@ def main():
             logits = clipzs.model_inference(images)
             # _, preds = torch.max(logits, 1)
             # correct = (preds == labels).sum().item()
-            # TODO: replace accuracy with own metod
-            top1acc = accuracy(logits, labels)[0]
+            batch_size = labels.size(0)
+
+            _, pred = logits.topk(1, 1, True, True)
+            pred = pred.t()
+            correct = pred.eq(labels.view(1, -1).expand_as(pred))
+
+            correct_k = correct[:1].reshape(-1).float().sum(0, keepdim=True)
+            top1acc = correct_k.mul_(100.0 / batch_size)
+
             # - Updating the accuracy meter is as simple as calling top1.update(accuracy, batch_size)
             batch_size = len(labels)
             top1.update(top1acc / 100, batch_size)

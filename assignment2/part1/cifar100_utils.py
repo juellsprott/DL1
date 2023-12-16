@@ -40,7 +40,7 @@ class AddGaussianNoise(torch.nn.Module):
         sample = torch.randn(img.shape) * self.std + self.mean
         img = img + sample
         return img
-                
+
         #######################
         # END OF YOUR CODE    #
         #######################
