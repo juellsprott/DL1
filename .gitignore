@@ -5,3 +5,5 @@ model_archive
 *.pt
 archive/
 *.png
+AAE_logs
+VAE_logs

@@ -35,8 +35,7 @@ def sample_reparameterize(mean, std):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    z = None
-    raise NotImplementedError
+    z = (std * torch.randn_like(mean)) + mean
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -58,8 +57,8 @@ def KLD(mean, log_std):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    KLD = None
-    raise NotImplementedError
+    KLD = torch.exp(2 * log_std) + mean**2 - (2 * log_std) - 1
+    KLD = 0.5 * torch.sum(KLD, dim=-1)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -78,8 +77,10 @@ def elbo_to_bpd(elbo, img_shape):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-    bpd = None
-    raise NotImplementedError
+    product = np.prod(img_shape[1:])
+    log2_e = torch.log2(torch.tensor(torch.e))
+    bpd = elbo * log2_e / product
+    bpd = bpd.to(elbo.device)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -111,10 +112,20 @@ def visualize_manifold(decoder, grid_size=20):
     # PUT YOUR CODE HERE  #
     #######################
     img_grid = None
-    raise NotImplementedError
+
+    step_size = 1 / grid_size
+    dist_range = torch.arange(0.5 / grid_size, 1, step=step_size)
+    z_values = torch.distributions.Normal(0, 1).icdf(dist_range)
+    grid = torch.meshgrid(z_values, z_values)
+    z_values = torch.stack((grid[0], grid[1]), dim=-1)
+    output = torch.softmax(decoder(z_values.reshape(-1, 2)), dim=1)
+    reshaped_output = torch.permute(output,(0,2,3,1))
+    reshaped_output = reshaped_output.flatten(0, 2)
+    x = torch.multinomial(reshaped_output, 1).float()
+    x = x.reshape(output.shape[0], 1, output.shape[2], output.shape[3])
+    img_grid = make_grid(x, nrow=grid_size, normalize=True, value_range=(0, 1))
     #######################
     # END OF YOUR CODE    #
     #######################
 
     return img_grid
-
